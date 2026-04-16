@@ -766,13 +766,16 @@ def load_profile(path: str | Path) -> Profile:
         chunk = text[m.end(): end if end != -1 else len(text)]
         found: list[str] = []
         for line in chunk.splitlines():
-            if line.strip().startswith("-"):
-                tail = _BULLET_KW_RE.search(line)
-                if tail:
-                    for kw in re.split(r"[、，,/]", tail.group(1)):
-                        kw = kw.strip()
-                        if kw:
-                            found.append(kw)
+            stripped = line.strip()
+            if stripped.startswith("-"):
+                # Strip leading "- " and an optional "label：" prefix before splitting.
+                body = stripped.lstrip("-").strip()
+                tail = _BULLET_KW_RE.search(body)
+                kw_str = tail.group(1) if tail else body
+                for kw in re.split(r"[、，,/]", kw_str):
+                    kw = kw.strip()
+                    if kw:
+                        found.append(kw)
         keywords[layer] = found
     scale: dict[str, int] = {}
     for line in text.splitlines():
