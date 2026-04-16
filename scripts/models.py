@@ -1,5 +1,5 @@
-from dataclasses import dataclass, field
-from typing import Literal, Optional
+from dataclasses import dataclass
+from typing import Literal
 
 @dataclass
 class Section:
@@ -11,7 +11,7 @@ class Document:
     title: str
     year: int
     file_type: str
-    source_url: Optional[str]
+    source_url: str | None
     sections: list[Section]
     raw_text: str
 
