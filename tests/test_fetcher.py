@@ -17,6 +17,17 @@ def test_fetch_rejects_non_whitelisted_url(tmp_path):
     with pytest.raises(FetchError, match="not on whitelist"):
         fetch("https://evil.example.com/policy", cache_dir=tmp_path)
 
+def test_fetch_extracts_ucap_content_for_gov_cn(tmp_path, fixtures_dir):
+    html = (fixtures_dir / "sample_gov_cn_ucap.html").read_text(encoding="utf-8")
+    mock_resp = MagicMock(status_code=200, content=html.encode("utf-8"))
+    mock_resp.raise_for_status = MagicMock()
+    with patch("scripts.fetcher.requests.get", return_value=mock_resp):
+        text = fetch("https://www.gov.cn/ucap-test", cache_dir=tmp_path)
+    assert "大力发展新质生产力" in text
+    assert "国内生产总值增长 5% 左右" in text
+    assert "导航栏" not in text, "UCAP-CONTENT selector must exclude nav/footer chrome"
+    assert "页脚" not in text
+
 def test_fetch_http_error_raises(tmp_path):
     mock_resp = MagicMock(status_code=404)
     mock_resp.raise_for_status = MagicMock(side_effect=Exception("404"))

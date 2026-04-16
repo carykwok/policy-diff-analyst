@@ -22,3 +22,19 @@ def test_build_report_writes_docx_with_headings(tmp_path):
     assert "结论" in headings
     full = "\n".join(p.text for p in doc.paragraphs)
     assert disclaimer in full
+
+def test_style_line_is_actually_italic(tmp_path):
+    out = tmp_path / "report.docx"
+    build_report(
+        title="T",
+        style="research",
+        sections=[("S", ["body"])],
+        disclaimer="d",
+        output_path=out,
+    )
+    doc = DocxDocument(out)
+    style_runs = [
+        r for p in doc.paragraphs for r in p.runs if r.text.startswith("风格：")
+    ]
+    assert style_runs, "style line should exist"
+    assert style_runs[0].italic is True, "italic must be set on the run, not the paragraph"

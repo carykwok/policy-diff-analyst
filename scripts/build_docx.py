@@ -14,7 +14,9 @@ def build_report(
 
     # Title
     doc.add_heading(title, level=0)
-    doc.add_paragraph(f"风格：{style}").italic = True
+    # italic is a run-level property in python-docx; setting it on the paragraph is a no-op.
+    style_p = doc.add_paragraph()
+    style_p.add_run(f"风格：{style}").italic = True
 
     # Body
     for heading, paragraphs in sections:

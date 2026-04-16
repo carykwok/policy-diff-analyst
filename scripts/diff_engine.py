@@ -89,10 +89,11 @@ def compute_diff(old: Document, new: Document, profile: Profile) -> DiffReport:
                     note=f"强度 {old_score}→{new_score}",
                 ))
 
-    # A7 aggregation
+    # A7 aggregation — modified items are only emitted when scores differ (see above),
+    # so counting them directly gives the intensity-shift total without a redundant filter.
     added_terms = [i.new for i in items if i.change_type == "added"]
     removed_terms = [i.old for i in items if i.change_type == "removed"]
-    intensified = [i for i in items if i.change_type == "modified" and "→" in i.note]
+    intensified = [i for i in items if i.change_type == "modified"]
     a7_note = f"新增 {len(added_terms)} 项；消失 {len(removed_terms)} 项；强度变化 {len(intensified)} 项"
     items.append(DiffItem(layer="A7", change_type="modified", old="", new="", note=a7_note))
 

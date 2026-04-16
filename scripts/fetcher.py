@@ -27,8 +27,13 @@ def fetch(url: str, cache_dir: Path) -> str:
     except Exception as e:
         raise FetchError(f"fetch failed for {url}: {e}") from e
     soup = BeautifulSoup(resp.content, "lxml")
-    # Extract article body — fall back to whole text if no <article>
-    article = soup.find("article") or soup.find("body")
+    # Extract article body. gov.cn wraps policy documents in <div id="UCAP-CONTENT">;
+    # xinhua/people generally use <article>. Fall through to <body> then whole page.
+    article = (
+        soup.find(id="UCAP-CONTENT")
+        or soup.find("article")
+        or soup.find("body")
+    )
     text = article.get_text("\n", strip=True) if article else soup.get_text("\n", strip=True)
     cache_file.write_text(text, encoding="utf-8")
     return text
