@@ -1,5 +1,7 @@
 """Mode B source whitelist. Hardcoded — never accept URLs from LLM output."""
 
+from urllib.parse import urlparse
+
 ALLOWED_DOMAINS = (
     "www.gov.cn",
     "www.news.cn",        # 新华社
@@ -24,4 +26,16 @@ def get_sources(file_type: str, year: int) -> list[dict]:
     ]
 
 def is_allowed(url: str) -> bool:
-    return any(dom in url for dom in ALLOWED_DOMAINS)
+    """Return True only if url is https and its host is in ALLOWED_DOMAINS exactly.
+
+    Substring checks (dom in url) are bypassable (e.g., www.gov.cn.evil.com). Parse
+    the URL and compare host via equality against the whitelist.
+    """
+    try:
+        parsed = urlparse(url)
+    except ValueError:
+        return False
+    if parsed.scheme != "https":
+        return False
+    host = (parsed.hostname or "").lower()
+    return host in ALLOWED_DOMAINS
