@@ -240,7 +240,7 @@ git commit -m "Add shared data models for Document, DiffItem, DiffReport"
 ```python
 # tests/test_source_registry.py
 import pytest
-from scripts.source_registry import get_sources, ALLOWED_DOMAINS
+from scripts.source_registry import get_sources, ALLOWED_DOMAINS, is_allowed
 
 def test_govt_work_report_sources_returned_for_year():
     sources = get_sources("govt_work_report", 2024)
@@ -258,6 +258,27 @@ def test_allowed_domains_are_authoritative_only():
     # Only whitelisted authoritative domains
     for dom in ALLOWED_DOMAINS:
         assert dom.endswith(".gov.cn") or dom.endswith(".cn") or dom.endswith(".com.cn")
+
+def test_is_allowed_rejects_spoofed_and_non_https_urls():
+    # Exact-host whitelisted
+    assert is_allowed("https://www.gov.cn/premier/2024-03/05/report.htm") is True
+    assert is_allowed("https://www.news.cn/politics/2024lh/govt_report.htm") is True
+    # Case-insensitive host
+    assert is_allowed("https://WWW.GOV.CN/path") is True
+    # Spoofing attempts
+    assert is_allowed("https://www.gov.cn.evil.com/path") is False
+    assert is_allowed("https://evil.com/www.gov.cn/fake.htm") is False
+    assert is_allowed("https://www.gov.cn@evil.com/") is False
+    assert is_allowed("https://evil.com?x=www.gov.cn") is False
+    # Non-https
+    assert is_allowed("http://www.gov.cn/path") is False
+    # Subdomains not explicitly whitelisted
+    assert is_allowed("https://sub.www.gov.cn/path") is False
+    # Non-whitelisted domains
+    assert is_allowed("https://www.example.com/path") is False
+    # Malformed / empty
+    assert is_allowed("") is False
+    assert is_allowed("not a url") is False
 ```
 
 - [ ] **Step 2: Run — expect import error**
@@ -269,6 +290,8 @@ Expected: ImportError.
 
 ```python
 """Mode B source whitelist. Hardcoded — never accept URLs from LLM output."""
+
+from urllib.parse import urlparse
 
 ALLOWED_DOMAINS = (
     "www.gov.cn",
@@ -294,7 +317,19 @@ def get_sources(file_type: str, year: int) -> list[dict]:
     ]
 
 def is_allowed(url: str) -> bool:
-    return any(dom in url for dom in ALLOWED_DOMAINS)
+    """Return True only if url is https and its host is in ALLOWED_DOMAINS exactly.
+
+    Substring checks (dom in url) are bypassable (e.g., www.gov.cn.evil.com). Parse
+    the URL and compare host via equality against the whitelist.
+    """
+    try:
+        parsed = urlparse(url)
+    except ValueError:
+        return False
+    if parsed.scheme != "https":
+        return False
+    host = (parsed.hostname or "").lower()
+    return host in ALLOWED_DOMAINS
 ```
 
 > Note: the literal URL templates above are approximations — production use will require updating templates to match actual publication URLs, but the registry's contract (whitelist enforcement + tiered return) is stable.
@@ -302,7 +337,7 @@ def is_allowed(url: str) -> bool:
 - [ ] **Step 4: Run — expect pass**
 
 Run: `pytest tests/test_source_registry.py -v`
-Expected: 3 passed.
+Expected: 4 passed.
 
 - [ ] **Step 5: Commit**
 
