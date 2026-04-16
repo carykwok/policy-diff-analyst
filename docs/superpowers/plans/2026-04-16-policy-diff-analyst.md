@@ -748,6 +748,15 @@ _LAYER_SECTION_RE = re.compile(r"^### (A[1-7])\s+(.+)$", re.MULTILINE)
 _BULLET_KW_RE = re.compile(r"[：:]\s*(.+)$")
 _SCALE_ROW_RE = re.compile(r"^\|\s*(.+?)\s*\|\s*(\d+)\s*\|")
 
+_LAYER_NAMES = {
+    "A1": "定调",
+    "A2": "工具",
+    "A3": "产业",
+    "A4": "风险",
+    "A5": "民生",
+    "A6": "区域对外",
+}
+
 def load_profile(path: str | Path) -> Profile:
     text = Path(path).read_text(encoding="utf-8")
     keywords: dict[str, list[str]] = {}
@@ -827,7 +836,7 @@ def compute_diff(old: Document, new: Document, profile: Profile) -> DiffReport:
         old_scores = [_nearby_strength(old_text, k, profile.strength_scale)[1] for k in kws if k in old_text]
         new_scores = [_nearby_strength(new_text, k, profile.strength_scale)[1] for k in kws if k in new_text]
         strength.append(StrengthScore(
-            dimension=f"{layer}_{'定调工具产业风险民生区域对外'[ (int(layer[1])-1)*2 : int(layer[1])*2 ]}",
+            dimension=f"{layer}_{_LAYER_NAMES[layer]}",
             old=sum(old_scores)/len(old_scores) if old_scores else 0.0,
             new=sum(new_scores)/len(new_scores) if new_scores else 0.0,
         ))
