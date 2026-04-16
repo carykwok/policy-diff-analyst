@@ -1,0 +1,35 @@
+{
+  "skill_name": "policy-diff-analyst",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "这是 2024 政府工作报告和 2023 政府工作报告的全文（附上），请用投研派风格做对比分析。",
+      "expected_output": "output/report.docx 投研派结构 + data.xlsx 4 sheets + charts G1-G6",
+      "files": ["tests/fixtures/gwr_2024.txt", "tests/fixtures/gwr_2023.txt"]
+    },
+    {
+      "id": 2,
+      "prompt": "把 2024 和 2023 的政府工作报告对比一下，写得像《财经》那种深度风格。",
+      "expected_output": "media 风格报告",
+      "files": ["tests/fixtures/gwr_2024.txt", "tests/fixtures/gwr_2023.txt"]
+    },
+    {
+      "id": 3,
+      "prompt": "政府工作报告对比（2024 vs 2023），给我写个大白话通俗版。",
+      "expected_output": "retail 风格报告",
+      "files": ["tests/fixtures/gwr_2024.txt", "tests/fixtures/gwr_2023.txt"]
+    },
+    {
+      "id": 4,
+      "prompt": "帮我对比最新两版政府工作报告。",
+      "expected_output": "Mode B triggered; URL list presented for confirmation; research-style output",
+      "files": []
+    },
+    {
+      "id": 5,
+      "prompt": "近三年政府工作报告的趋势分析，投资派风格。",
+      "expected_output": "Mode B with N=3; trend-style report_trend.docx",
+      "files": []
+    }
+  ]
+}
