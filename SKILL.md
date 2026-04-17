@@ -93,7 +93,16 @@ Open the diff report and understand:
 ### Step 4 — Write the article body (YOU, the LLM)
 
 **First, load the analysis methodology:**
-- `references/analysis_framework.md` — 深度解读方法论（定调分析、量化目标解读、措辞信号、传导机制、历史语境）
+- `references/analysis_framework.md` — 完整解读方法论（12 章）
+
+**Key framework sections to internalize:**
+- §一-§三：定调谱系 + 量化三步法 + 措辞四类信号
+- §七：**文档类型差异化视角**——不同 file_type 的分析切入角度完全不同（如货政报告关注流动性措辞，政府工作报告关注量化目标）
+- §八：**关键词→行业传导映射表**——政策关键词到 A 股板块的具体映射
+- §九：**政策周期定位**——先判断当前处于稳增长/调结构/防风险/促发展哪个阶段
+- §十：**弦外之音读取**——信心水平、紧迫度、政策语言翻译表
+- §十一：**浅层 vs 深度分析实例**——必须达到"深度分析"示例的水平
+- §十二：**预期差分析**——实际政策 vs 市场预期的偏差
 
 **Then, load the style guide:**
 - `assets/style_research.md` for research
@@ -102,16 +111,17 @@ Open the diff report and understand:
 
 **Analysis requirements (all styles must cover, depth varies by style):**
 
-1. **框架概览**：从 `structure_diff` 提取 L1/L2 位置变化，呈现全局结构变动
-2. **定调判断**：按 analysis_framework §一 的谱系，判断宏观/财政/货币三重定调组合，与上年纵向对比
-3. **量化目标解读**：按 analysis_framework §二 的三步法（数字→设定逻辑→市场含义），解读 `quantitative_comparison` 中的核心指标变化
-4. **TOP 10 核心差异深度解读**：从 `diff_report.items` 中选信号最强的 10 个，每个按 analysis_framework §六.1 的五段式（差异项→信号解读→历史对标→传导推演→置信度）
-5. **C1 市场风格判断**（成长/价值 · 内需/外需 · 进攻/防守）——参照 §四.3
-6. **C2 行业配置**（超配/标配/低配 + 板块 + 政策证据 + 传导逻辑）——参照 §四.2
-7. **C3 交易节奏**（预期→落地→兑现三阶段时间窗口）
-8. **风险与反向观点**：对核心判断给出反面论证
+1. **政策周期定位**：先判断当前处于什么周期阶段（§九），这是整篇分析的底色
+2. **框架概览**：从 `structure_diff` 提取 L1/L2 位置变化，呈现全局结构变动
+3. **定调判断**：按 §一 的谱系，判断宏观/财政/货币三重定调组合，与上年纵向对比
+4. **量化目标解读**：按 §二 的三步法（数字→设定逻辑→市场含义），解读核心指标变化
+5. **TOP 10 核心差异深度解读**：每个按 §六.1 + §十一 的深度示例标准（差异项→信号解读→历史对标→传导推演→置信度），参考 §十 读取弦外之音
+6. **行业传导**：用 §八 的映射表，从政策差异推演到具体板块
+7. **C1 市场风格判断**（§四.3）+ **C2 行业配置**（§四.2 + §八）+ **C3 交易节奏**
+8. **预期差分析**（§十二）：标注市场事前预期 vs 实际政策的偏差
+9. **风险与反向观点**：对核心判断给出反面论证 + §十.4 的反面验证
 
-**核心原则：每个差异项必须走完"是什么→为什么→所以呢"三步，裸列差异不是分析。**
+**核心原则：每个差异项必须走完"是什么→为什么→所以呢"三步，裸列差异不是分析。参照 §十一 的深度分析示例——达不到该水平的分析不合格。**
 
 Hand the result to `build_docx.build_report` as `sections: list[(heading, [paragraph_str, ...])]`.
 The last section should be the appendix containing old and new document full text.
