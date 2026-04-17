@@ -108,10 +108,37 @@ build_report(
 )
 ```
 
-### Step 7 — Report back
+### Step 7 — Annotated docx (auto-generated)
+`run_analysis` automatically produces `output/annotated_new.docx`:
+- Keywords **added** in new version: red bold + grey `【新增·A3】` inline tag
+- Keywords with **strength change**: red bold + grey `【强度 3→5】` inline tag
+- Keywords **removed**: collected in a "本版不再提及的表述" section at end
+
+No extra config needed — this is always produced alongside data.xlsx.
+
+### Step 8 — Temporal diff (optional, N-year comparison)
+If the user provides 3+ years of documents, add `extra_docs` to config:
+```json
+{
+  "old": {"mode": "text", "content": "...", "year": 2022},
+  "new": {"mode": "text", "content": "...", "year": 2024},
+  "extra_docs": [
+    {"mode": "text", "content": "...", "year": 2023}
+  ],
+  ...
+}
+```
+This produces `temporal_report` in the result dict with:
+- Per-keyword trajectory: `sustained` / `emerging` / `revived` / `fading` / `dropped`
+- `strength_by_year`: keyword strength scores across all years
+- `pairwise_reports`: consecutive year-pair DiffReports
+
+Use the temporal data to narrate multi-year trends in the article (e.g. "新质生产力 emerged in 2024, absent in 2022-2023").
+
+### Step 9 — Report back
 Tell the user:
 - Output directory path
-- What files were produced
+- What files were produced (including annotated_new.docx)
 - One-paragraph summary of your core finding
 
 ## Constraints

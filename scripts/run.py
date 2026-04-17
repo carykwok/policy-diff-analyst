@@ -21,8 +21,9 @@ from pathlib import Path
 from scripts.models import Document
 from scripts.parse_input import parse_text, parse_pdf, parse_docx
 from scripts.fetcher import fetch
-from scripts.diff_engine import load_profile, compute_diff
+from scripts.diff_engine import load_profile, compute_diff, compute_temporal_diff
 from scripts.build_xlsx import build_xlsx
+from scripts.build_annotated_docx import build_annotated_docx
 from scripts.build_charts import (
     build_g1_wordfreq_bar,
     build_g2_strength_radar,
@@ -74,8 +75,22 @@ def run_analysis(config: dict) -> dict:
     if flows:
         build_g6_flow_sankey(flows, charts_dir / "G6_措辞流向.png")
 
+    # Annotated docx: new document with red highlights + grey notes
+    build_annotated_docx(new.raw_text, report, out_dir / "annotated_new.docx")
+
+    # Temporal diff if extra docs provided
+    temporal_result = None
+    extra_docs_specs = config.get("extra_docs", [])
+    if extra_docs_specs:
+        all_docs = [old, new]
+        for spec in extra_docs_specs:
+            all_docs.append(_load_doc(spec, cache_dir, file_type))
+        temporal = compute_temporal_diff(all_docs, profile)
+        temporal_result = asdict(temporal)
+
     return {
         "diff_report": asdict(report),
+        "temporal_report": temporal_result,
         "output_dir": str(out_dir),
         "charts_dir": str(charts_dir),
     }

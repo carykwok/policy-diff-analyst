@@ -38,3 +38,19 @@ class DiffReport:
     items: list[DiffItem]
     strength: list[StrengthScore]
     term_freq: dict[str, dict[str, int]]   # term -> {"old": n, "new": m}
+
+@dataclass
+class TemporalKeyword:
+    keyword: str
+    layer: str
+    years_present: list[int]               # [2020, 2021, 2023] — present in these years
+    years_absent: list[int]                 # [2022] — absent
+    strength_by_year: dict[int, float]      # {2020: 3.0, 2021: 4.0, ...}
+    status: str                             # "sustained" | "emerging" | "revived" | "fading" | "dropped"
+
+@dataclass
+class TemporalReport:
+    doc_titles: list[str]                   # ordered by year
+    years: list[int]
+    keywords: list[TemporalKeyword]
+    pairwise_reports: list[DiffReport]      # consecutive year pairs

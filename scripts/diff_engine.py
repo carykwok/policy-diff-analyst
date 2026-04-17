@@ -1,7 +1,7 @@
 import re
 from dataclasses import dataclass
 from pathlib import Path
-from scripts.models import Document, DiffItem, DiffReport, StrengthScore
+from scripts.models import Document, DiffItem, DiffReport, StrengthScore, TemporalKeyword, TemporalReport
 
 @dataclass
 class Profile:
@@ -172,4 +172,85 @@ def compute_diff(old: Document, new: Document, profile: Profile) -> DiffReport:
         items=items,
         strength=strength,
         term_freq=term_freq,
+    )
+
+
+def compute_temporal_diff(docs: list[Document], profile: Profile) -> TemporalReport:
+    """Compare N documents (sorted by year) and track keyword trajectories.
+
+    For each keyword in the profile, records which years it appeared,
+    its strength score per year, and classifies the trajectory:
+      - sustained: present in all years
+      - emerging: absent early, present in recent years
+      - revived: disappeared then came back
+      - fading: strength declining over recent years
+      - dropped: present early, absent in most recent year
+    """
+    docs = sorted(docs, key=lambda d: d.year)
+    years = [d.year for d in docs]
+
+    # Detect aggregation layer
+    agg_layer = None
+    for lid in reversed(profile.layer_ids):
+        if not profile.keywords_by_layer.get(lid):
+            agg_layer = lid
+            break
+
+    # Build per-keyword temporal data
+    all_kws: list[tuple[str, str]] = []  # (keyword, layer)
+    for layer in profile.layer_ids:
+        if layer == agg_layer:
+            continue
+        for kw in profile.keywords_by_layer.get(layer, []):
+            all_kws.append((kw, layer))
+
+    temporal_keywords: list[TemporalKeyword] = []
+    for kw, layer in all_kws:
+        present = [d.year for d in docs if kw in d.raw_text]
+        absent = [y for y in years if y not in present]
+        strength_by_year: dict[int, float] = {}
+        for d in docs:
+            if kw in d.raw_text:
+                _, score = _nearby_strength(d.raw_text, kw, profile.strength_scale)
+                strength_by_year[d.year] = float(score)
+
+        if not present:
+            continue  # keyword never appears, skip
+
+        # Classify trajectory
+        if set(present) == set(years):
+            # Check if fading (strength declining over last 2+ years)
+            recent_scores = [strength_by_year[y] for y in years[-2:] if y in strength_by_year]
+            if len(recent_scores) == 2 and recent_scores[-1] < recent_scores[-2]:
+                status = "fading"
+            else:
+                status = "sustained"
+        elif years[-1] not in present:
+            status = "dropped"
+        elif years[0] not in present and years[-1] in present:
+            # Check for revival (gap in the middle)
+            if any(y not in present for y in years[1:-1]) and any(y in present for y in years[:len(years)//2+1]):
+                status = "revived"
+            else:
+                status = "emerging"
+        else:
+            # Present in first and last but gaps in middle
+            status = "revived"
+
+        temporal_keywords.append(TemporalKeyword(
+            keyword=kw, layer=layer,
+            years_present=present, years_absent=absent,
+            strength_by_year=strength_by_year, status=status,
+        ))
+
+    # Build consecutive pairwise reports
+    pairwise: list[DiffReport] = []
+    for i in range(len(docs) - 1):
+        pairwise.append(compute_diff(docs[i], docs[i + 1], profile))
+
+    return TemporalReport(
+        doc_titles=[d.title for d in docs],
+        years=years,
+        keywords=temporal_keywords,
+        pairwise_reports=pairwise,
     )
