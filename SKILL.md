@@ -47,18 +47,20 @@ Do not assume. If any required field is missing, ask one focused question.
 - **Mode A** (explicit inputs): user supplies URLs, PDF/docx paths, or pasted text.
 - **Mode B** (intent-driven): user describes intent like "最新两版" / "近三年趋势". You:
   1. Determine file_type, N, year range
-  2. For each year, call `scripts/source_registry.get_sources(file_type, year)`
-  3. **Display the URL list to the user and wait for confirmation** before fetching
-  4. After confirmation, `scripts.run.run_analysis` handles fetch + parse via its `mode=url` branch
-  5. Only URLs returned by `source_registry` are ever fetched — do not pass user-provided URLs into Mode B
+  2. For each year, call `scripts/source_registry.get_sources(file_type, year)` to get template URLs
+  3. Try template URLs first. If they 404, use `source_registry.get_search_hint(file_type, year)` with WebSearch to discover actual URLs
+  4. Validate all discovered URLs with `source_registry.is_allowed(url)` — reject any URL outside the whitelist
+  5. **Display the URL list to the user and wait for confirmation** before fetching
+  6. After confirmation, fetch and parse. Only whitelisted URLs are ever fetched
 
 ## Workflow
 
 ### Step 0 — Structure outline & framework diff (auto-generated)
 `run_analysis` automatically extracts the structure outline of both documents and compares them:
 - Multi-level heading detection: L1 `一、` / L2 `（一）` / L3 `1.`
+- **L1 + L2 two-level comparison**: L1 checks top-level section changes; L2 checks subsection reordering within matched L1 pairs (e.g. "消费" promoted from （三） to （一） under "工作任务")
 - Section ordering comparison: detects moved_up / moved_down / added / removed / renamed
-- Framework-level summary (e.g. "新增 2 个章节；1 个章节前移（优先级提升）")
+- Framework-level summary (e.g. "L1 框架基本不变；L2 子章节：消费从第3升至第1")
 
 This appears as the **first section** in `annotated_new.docx` ("一、框架结构对比") and in the `structure_diff` key of the result JSON. Present this to the reader **before** keyword-level analysis — it gives the most direct framework-level orientation.
 
@@ -143,12 +145,39 @@ This produces `temporal_report` in the result dict with:
 
 Use the temporal data to narrate multi-year trends in the article (e.g. "新质生产力 emerged in 2024, absent in 2022-2023").
 
-### Step 9 — Report back
+### Step 9 — Quantitative indicator comparison
+`run_analysis` returns `quantitative_comparison` — a list of extracted numerical indicators (GDP targets, deficit ratios, bond issuance amounts, etc.) with old vs new values. Present these as a structured table in the article. Key signals: target changes (5%→5%), scale changes (3.9→4.4万亿), and newly introduced targets.
+
+### Step 10 — Report back
 Tell the user:
 - Output directory path
 - What files were produced (including annotated_new.docx with structure outline)
-- **Structure framework changes first** (from `structure_diff.summary`)
+- **Structure framework changes first** (from `structure_diff.summary`, both L1 and L2)
+- Quantitative indicator changes (key number shifts)
 - Then one-paragraph summary of keyword-level core findings
+
+### Step 11 — Profile self-expansion (auto-triggered)
+After analysis, `run_analysis` returns `new_term_candidates` — a list of high-frequency terms found in the new document that are NOT in the current profile. Present these to the user:
+> "以下高频词不在当前 profile 关键词库中，是否需要加入？"
+> (table of term / new_freq / old_freq)
+
+If the user confirms specific terms, append them to the appropriate layer in the profile `.md` file. This keeps the keyword library evolving with policy vocabulary.
+
+### Step 12 — Self-evaluation (optional, recommended for quality iteration)
+After completing the analysis article, perform a quality self-check:
+
+**Layer 2 — Expert cross-reference:**
+1. Use WebSearch: `"{year}年政府工作报告 解读 中金/中信/国君"` (or equivalent for other file_types)
+2. Compare your core conclusions with expert commentary
+3. Flag any signals experts caught that you missed, or signals you reported that experts didn't mention
+4. Output a brief "分析质量自评" noting gaps and confidence level
+
+**Layer 3 — Temporal self-correction (for N-year analyses):**
+1. Check if previous year's `temporal_report` predictions held:
+   - "emerging" keywords: did they persist? → precision check
+   - "fading" keywords: did they actually drop? → recall check
+2. Output prediction accuracy rate
+3. Feed back into trajectory classification tuning
 
 ## Constraints
 

@@ -1,4 +1,10 @@
-"""Mode B source whitelist. Hardcoded — never accept URLs from LLM output."""
+"""Mode B source whitelist. Hardcoded — never accept URLs from LLM output.
+
+Two discovery strategies:
+1. Template URLs: pre-built URL patterns (may 404, used as first attempt)
+2. Search hints: query strings for WebSearch to find actual URLs
+   (LLM uses these to discover real URLs, then validates against ALLOWED_DOMAINS)
+"""
 
 from urllib.parse import urlparse
 
@@ -6,7 +12,7 @@ ALLOWED_DOMAINS = (
     "www.gov.cn",
     "www.news.cn",        # 新华社
     "www.people.com.cn",  # 人民网
-    "www.pbc.gov.cn",     # 中国人民银行
+    "www.pbc.gov.cn",     # 中国人民���行
 )
 
 SUPPORTED_FILE_TYPES = (
@@ -47,6 +53,26 @@ def get_sources(file_type: str, year: int, **kwargs) -> list[dict]:
         {"tier": t["tier"], "url": t["template"].format(year=year, **kwargs), "domain": t["domain"]}
         for t in _URL_TEMPLATES[file_type]
     ]
+
+_SEARCH_HINTS: dict[str, str] = {
+    "govt_work_report": "{year}年政府工作报告全文 site:gov.cn",
+    "cewc": "{year}年中央经济工作会议 全文 site:gov.cn",
+    "five_year_plan": "十{plan_ord}五规划纲要 全文 site:gov.cn",
+    "third_plenum": "{year}年三中全会决定 全文 site:gov.cn",
+    "monetary_policy_report": "{year}年第{quarter}季度货币政策执行报告 site:pbc.gov.cn",
+}
+
+
+def get_search_hint(file_type: str, year: int, **kwargs) -> str:
+    """Return a search query string for discovering the actual document URL.
+
+    The LLM should use this with WebSearch, pick URLs from results,
+    validate each with is_allowed(), then fetch the valid ones.
+    """
+    if file_type not in _SEARCH_HINTS:
+        raise ValueError(f"unsupported file_type: {file_type}")
+    return _SEARCH_HINTS[file_type].format(year=year, **kwargs)
+
 
 def is_allowed(url: str) -> bool:
     """Return True only if url is https and its host is in ALLOWED_DOMAINS exactly.

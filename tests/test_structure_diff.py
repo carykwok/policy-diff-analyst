@@ -123,3 +123,63 @@ def test_structure_diff_identical_docs():
     # All changes should be "kept"
     for c in diff.changes:
         assert c.change_type == "kept"
+
+
+def test_structure_diff_detects_l2_reorder():
+    """L1 headings are identical, but L2 subsections are reordered.
+
+    Simulates the real-world case: '扩大国内需求' promoted from （三） to （一）
+    under the same '工作任务' L1 section.
+    """
+    old_text = """\
+一、2024 年工作回顾
+回顾正文。
+
+二、2025 年经济社会发展总体要求
+总体要求正文。
+
+三、2025 年政府工作任务
+（一）大力推进现代化产业体系建设
+发展新质生产力。
+（二）深入实施科教兴国战略
+加强基础研究。
+（三）着力扩大国内需求
+激发消费潜能。
+"""
+
+    new_text = """\
+一、2024 年工作回顾
+回顾正文。
+
+二、2025 年经济社会发展总体要求
+总体要求正文。
+
+三、2025 年政府工作任务
+（一）大力提振消费、着力扩大国内需求
+激发消费潜能，扩大有效投资。
+（二）大力推进现代化产业体系建设
+发展新质生产力。
+（三）深入实施科教兴国战略
+加强基础研究。
+"""
+
+    old_doc = _doc(2024, old_text)
+    new_doc = _doc(2025, new_text)
+    diff = compute_structure_diff(old_doc, new_doc)
+
+    # L1 should all be "kept" (identical headings)
+    l1_changes = [c for c in diff.changes if "子章节" not in c.note]
+    for c in l1_changes:
+        assert c.change_type == "kept", f"L1 should be kept, got {c.change_type}: {c.note}"
+
+    # L2 changes should detect movement
+    l2_changes = [c for c in diff.changes if "子章节" in c.note]
+    assert len(l2_changes) > 0, "Should detect L2 subsection changes"
+
+    # At least one L2 should be moved_up or moved_down
+    l2_moved = [c for c in l2_changes if c.change_type in ("moved_up", "moved_down")]
+    assert len(l2_moved) > 0, "Should detect L2 subsection reordering"
+
+    # Summary should mention L2
+    assert "L2" in diff.summary
+    assert "L1 框架基本不变" in diff.summary

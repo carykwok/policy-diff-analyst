@@ -1,5 +1,5 @@
 import pytest
-from scripts.source_registry import get_sources, ALLOWED_DOMAINS, SUPPORTED_FILE_TYPES, is_allowed
+from scripts.source_registry import get_sources, get_search_hint, ALLOWED_DOMAINS, SUPPORTED_FILE_TYPES, is_allowed
 
 def test_govt_work_report_sources_returned_for_year():
     sources = get_sources("govt_work_report", 2024)
@@ -54,3 +54,22 @@ def test_is_allowed_rejects_spoofed_and_non_https_urls():
     # Malformed / empty
     assert is_allowed("") is False
     assert is_allowed("not a url") is False
+
+
+def test_get_search_hint_returns_query():
+    hint = get_search_hint("govt_work_report", 2025)
+    assert "2025" in hint
+    assert "政府工作报告" in hint
+    assert "gov.cn" in hint
+
+
+def test_get_search_hint_monetary_with_quarter():
+    hint = get_search_hint("monetary_policy_report", 2024, quarter=3)
+    assert "2024" in hint
+    assert "3" in hint
+    assert "pbc.gov.cn" in hint
+
+
+def test_get_search_hint_unsupported_raises():
+    with pytest.raises(ValueError, match="unsupported file_type"):
+        get_search_hint("unknown_type", 2024)

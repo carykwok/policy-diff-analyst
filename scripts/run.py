@@ -21,7 +21,10 @@ from pathlib import Path
 from scripts.models import Document
 from scripts.parse_input import parse_text, parse_pdf, parse_docx
 from scripts.fetcher import fetch
-from scripts.diff_engine import load_profile, compute_diff, compute_temporal_diff, compute_structure_diff
+from scripts.diff_engine import (
+    load_profile, compute_diff, compute_temporal_diff, compute_structure_diff,
+    discover_new_terms, compare_quantitative,
+)
 from scripts.build_xlsx import build_xlsx
 from scripts.build_annotated_docx import build_annotated_docx
 from scripts.build_charts import (
@@ -93,9 +96,17 @@ def run_analysis(config: dict) -> dict:
         temporal = compute_temporal_diff(all_docs, profile)
         temporal_result = asdict(temporal)
 
+    # Quantitative indicator comparison
+    quantitative_comparison = compare_quantitative(old.raw_text, new.raw_text)
+
+    # Discover new terms not in current profile
+    new_term_candidates = discover_new_terms(old.raw_text, new.raw_text, profile)
+
     return {
         "diff_report": asdict(report),
         "structure_diff": asdict(structure_diff),
+        "quantitative_comparison": quantitative_comparison,
+        "new_term_candidates": new_term_candidates,
         "temporal_report": temporal_result,
         "output_dir": str(out_dir),
         "charts_dir": str(charts_dir),
