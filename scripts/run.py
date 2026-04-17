@@ -82,9 +82,9 @@ def run_analysis(config: dict) -> dict:
     if flows:
         build_g6_flow_sankey(flows, charts_dir / "G6_措辞流向.png")
 
-    # Annotated docx: new document with red highlights + grey notes + structure summary
+    # Annotated docx: new document with red highlights + grey notes + structure summary + appendix
     build_annotated_docx(new.raw_text, report, out_dir / "annotated_new.docx",
-                         structure_diff=structure_diff)
+                         structure_diff=structure_diff, old_text=old.raw_text)
 
     # Temporal diff if extra docs provided
     temporal_result = None

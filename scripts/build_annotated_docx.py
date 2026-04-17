@@ -27,6 +27,7 @@ def build_annotated_docx(
     output_path: Path,
     *,
     structure_diff: StructureDiff | None = None,
+    old_text: str | None = None,
 ) -> None:
     doc = DocxDocument()
 
@@ -170,6 +171,22 @@ def build_annotated_docx(
             note = p.add_run(f"  （{item.layer}·{item.note}）")
             note.font.color.rgb = _GREY
             note.font.size = Pt(8)
+
+    # ── Appendix: full original texts ──
+    if old_text or new_text:
+        doc.add_page_break()
+        doc.add_heading("附录：原文全文", level=1)
+        if old_text:
+            doc.add_heading(f"旧版：{report.old_doc_title}", level=2)
+            for line in old_text.strip().split("\n"):
+                line = line.strip()
+                if line:
+                    doc.add_paragraph(line)
+        doc.add_heading(f"新版：{report.new_doc_title}", level=2)
+        for line in new_text.strip().split("\n"):
+            line = line.strip()
+            if line:
+                doc.add_paragraph(line)
 
     doc.save(output_path)
 

@@ -84,21 +84,37 @@ python -m scripts.run /tmp/config.json
 This produces `output/data.xlsx` and `output/charts/G1,G2,G4,G6 .png`.
 
 ### Step 3 — Read the DiffReport JSON from run.py stdout + xlsx
-Open the diff report to understand A1–A7 layers.
+Open the diff report and understand:
+- `structure_diff`: L1/L2 framework changes (priority signal)
+- `diff_report`: keyword-level changes across all profile layers
+- `quantitative_comparison`: numerical indicator changes
+- `new_term_candidates`: high-frequency terms not in profile (for Step 11)
 
 ### Step 4 — Write the article body (YOU, the LLM)
-Load the style guide:
+
+**First, load the analysis methodology:**
+- `references/analysis_framework.md` — 深度解读方法论（定调分析、量化目标解读、措辞信号、传导机制、历史语境）
+
+**Then, load the style guide:**
 - `assets/style_research.md` for research
 - `assets/style_media.md` for media
 - `assets/style_retail.md` for retail
 
-Follow the guide's structure and language rules. Cover:
-- **C1 market style judgment** (成长/价值 · 内需/外需 · 进攻/防守)
-- **C2 sector allocation** (超配/标配/低配 + sector list + confidence)
-- **C3 trading rhythm** (expectation → landing → realization)
-- Analysis of all A1–A7 layers with concrete diff items as evidence
+**Analysis requirements (all styles must cover, depth varies by style):**
+
+1. **框架概览**：从 `structure_diff` 提取 L1/L2 位置变化，呈现全局结构变动
+2. **定调判断**：按 analysis_framework §一 的谱系，判断宏观/财政/货币三重定调组合，与上年纵向对比
+3. **量化目标解读**：按 analysis_framework §二 的三步法（数字→设定逻辑→市场含义），解读 `quantitative_comparison` 中的核心指标变化
+4. **TOP 10 核心差异深度解读**：从 `diff_report.items` 中选信号最强的 10 个，每个按 analysis_framework §六.1 的五段式（差异项→信号解读→历史对标→传导推演→置信度）
+5. **C1 市场风格判断**（成长/价值 · 内需/外需 · 进攻/防守）——参照 §四.3
+6. **C2 行业配置**（超配/标配/低配 + 板块 + 政策证据 + 传导逻辑）——参照 §四.2
+7. **C3 交易节奏**（预期→落地→兑现三阶段时间窗口）
+8. **风险与反向观点**：对核心判断给出反面论证
+
+**核心原则：每个差异项必须走完"是什么→为什么→所以呢"三步，裸列差异不是分析。**
 
 Hand the result to `build_docx.build_report` as `sections: list[(heading, [paragraph_str, ...])]`.
+The last section should be the appendix containing old and new document full text.
 
 ### Step 5 — Produce G3 and G5 charts (LLM-derived data)
 G3 config matrix and G5 sector sunburst depend on your C2 judgment. After writing the article:
