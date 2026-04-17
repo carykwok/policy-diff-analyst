@@ -54,6 +54,14 @@ Do not assume. If any required field is missing, ask one focused question.
 
 ## Workflow
 
+### Step 0 — Structure outline & framework diff (auto-generated)
+`run_analysis` automatically extracts the structure outline of both documents and compares them:
+- Multi-level heading detection: L1 `一、` / L2 `（一）` / L3 `1.`
+- Section ordering comparison: detects moved_up / moved_down / added / removed / renamed
+- Framework-level summary (e.g. "新增 2 个章节；1 个章节前移（优先级提升）")
+
+This appears as the **first section** in `annotated_new.docx` ("一、框架结构对比") and in the `structure_diff` key of the result JSON. Present this to the reader **before** keyword-level analysis — it gives the most direct framework-level orientation.
+
 ### Step 1 — Parse intent, collect inputs
 Ask missing questions. For Mode B, present URL list and get confirmation.
 
@@ -138,8 +146,9 @@ Use the temporal data to narrate multi-year trends in the article (e.g. "新质�
 ### Step 9 — Report back
 Tell the user:
 - Output directory path
-- What files were produced (including annotated_new.docx)
-- One-paragraph summary of your core finding
+- What files were produced (including annotated_new.docx with structure outline)
+- **Structure framework changes first** (from `structure_diff.summary`)
+- Then one-paragraph summary of keyword-level core findings
 
 ## Constraints
 

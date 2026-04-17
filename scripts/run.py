@@ -21,7 +21,7 @@ from pathlib import Path
 from scripts.models import Document
 from scripts.parse_input import parse_text, parse_pdf, parse_docx
 from scripts.fetcher import fetch
-from scripts.diff_engine import load_profile, compute_diff, compute_temporal_diff
+from scripts.diff_engine import load_profile, compute_diff, compute_temporal_diff, compute_structure_diff
 from scripts.build_xlsx import build_xlsx
 from scripts.build_annotated_docx import build_annotated_docx
 from scripts.build_charts import (
@@ -55,6 +55,10 @@ def run_analysis(config: dict) -> dict:
     old = _load_doc(config["old"], cache_dir, file_type)
     new = _load_doc(config["new"], cache_dir, file_type)
     profile = load_profile(config["profile_path"])
+
+    # Structure outline & diff — framework-level view before keyword analysis
+    structure_diff = compute_structure_diff(old, new)
+
     report = compute_diff(old, new, profile)
 
     build_xlsx(report, out_dir / "data.xlsx", profile=profile)
@@ -75,8 +79,9 @@ def run_analysis(config: dict) -> dict:
     if flows:
         build_g6_flow_sankey(flows, charts_dir / "G6_措辞流向.png")
 
-    # Annotated docx: new document with red highlights + grey notes
-    build_annotated_docx(new.raw_text, report, out_dir / "annotated_new.docx")
+    # Annotated docx: new document with red highlights + grey notes + structure summary
+    build_annotated_docx(new.raw_text, report, out_dir / "annotated_new.docx",
+                         structure_diff=structure_diff)
 
     # Temporal diff if extra docs provided
     temporal_result = None
@@ -90,6 +95,7 @@ def run_analysis(config: dict) -> dict:
 
     return {
         "diff_report": asdict(report),
+        "structure_diff": asdict(structure_diff),
         "temporal_report": temporal_result,
         "output_dir": str(out_dir),
         "charts_dir": str(charts_dir),

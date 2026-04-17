@@ -15,7 +15,7 @@ from docx import Document as DocxDocument
 from docx.shared import Pt, RGBColor
 from docx.enum.text import WD_COLOR_INDEX
 
-from scripts.models import DiffReport, DiffItem
+from scripts.models import DiffReport, DiffItem, StructureDiff
 
 _RED = RGBColor(0xCC, 0x00, 0x00)
 _GREY = RGBColor(0x88, 0x88, 0x88)
@@ -25,6 +25,8 @@ def build_annotated_docx(
     new_text: str,
     report: DiffReport,
     output_path: Path,
+    *,
+    structure_diff: StructureDiff | None = None,
 ) -> None:
     doc = DocxDocument()
 
@@ -34,6 +36,41 @@ def build_annotated_docx(
     run = subtitle.add_run(f"对比基准：{report.old_doc_title} → {report.new_doc_title}")
     run.italic = True
     run.font.color.rgb = _GREY
+
+    # ── Structure outline summary (framework-level view first) ──
+    if structure_diff:
+        doc.add_heading("一、框架结构对比", level=1)
+        summary_p = doc.add_paragraph()
+        summary_run = summary_p.add_run(structure_diff.summary)
+        summary_run.bold = True
+
+        for change in structure_diff.changes:
+            p = doc.add_paragraph(style="List Bullet")
+            if change.change_type == "added":
+                r = p.add_run(f"【新增】{change.heading_new}")
+                r.font.color.rgb = _RED
+                r.bold = True
+            elif change.change_type == "removed":
+                r = p.add_run(f"【删除】{change.heading_old}")
+                r.font.color.rgb = _GREY
+            elif change.change_type in ("moved_up", "moved_down"):
+                r = p.add_run(f"{change.heading_new}")
+                r.bold = True
+                note_r = p.add_run(f"  （{change.note}）")
+                note_r.font.color.rgb = _GREY
+                note_r.font.size = Pt(8)
+            elif change.change_type == "renamed":
+                r = p.add_run(f"{change.heading_new}")
+                r.font.color.rgb = _RED
+                note_r = p.add_run(f"  （{change.note}）")
+                note_r.font.color.rgb = _GREY
+                note_r.font.size = Pt(8)
+            else:  # kept
+                p.add_run(change.heading_new)
+
+        doc.add_paragraph()  # spacer
+
+    doc.add_heading("二、逐段标注" if structure_diff else "逐段标注", level=1)
 
     # Index diff items for quick lookup
     added_kws: dict[str, DiffItem] = {}

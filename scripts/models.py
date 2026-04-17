@@ -40,6 +40,40 @@ class DiffReport:
     term_freq: dict[str, dict[str, int]]   # term -> {"old": n, "new": m}
 
 @dataclass
+class OutlineEntry:
+    """One heading in a document's structure outline."""
+    level: int                               # 1 = "一、", 2 = "（一）", 3 = "1."
+    heading: str                             # e.g. "一、2023 年工作回顾"
+    position: int                            # 0-indexed order in the document
+    char_count: int                          # body length (rough weight proxy)
+
+@dataclass
+class StructureOutline:
+    """Extracted structure of a single document."""
+    title: str
+    year: int
+    entries: list[OutlineEntry]
+
+StructureChangeType = Literal["moved_up", "moved_down", "added", "removed", "renamed", "kept"]
+
+@dataclass
+class StructureChange:
+    heading_old: str
+    heading_new: str
+    change_type: StructureChangeType
+    old_position: int | None                 # None if added
+    new_position: int | None                 # None if removed
+    note: str
+
+@dataclass
+class StructureDiff:
+    old_outline: StructureOutline
+    new_outline: StructureOutline
+    changes: list[StructureChange]
+    summary: str                             # one-paragraph framework-level summary
+
+
+@dataclass
 class TemporalKeyword:
     keyword: str
     layer: str

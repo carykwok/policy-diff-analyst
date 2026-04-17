@@ -1,7 +1,11 @@
 import re
 from dataclasses import dataclass
 from pathlib import Path
-from scripts.models import Document, DiffItem, DiffReport, StrengthScore, TemporalKeyword, TemporalReport
+from scripts.models import (
+    Document, DiffItem, DiffReport, StrengthScore,
+    TemporalKeyword, TemporalReport,
+    OutlineEntry, StructureOutline, StructureChange, StructureDiff,
+)
 
 @dataclass
 class Profile:
@@ -253,4 +257,184 @@ def compute_temporal_diff(docs: list[Document], profile: Profile) -> TemporalRep
         years=years,
         keywords=temporal_keywords,
         pairwise_reports=pairwise,
+    )
+
+
+# ── Structure outline & diff ──────────────────────────────────────────
+
+# Level 1: 一、二、三、…  Level 2: （一）（二）…  Level 3: 1. 2. 3. …
+_L1_RE = re.compile(r"^([一二三四五六七八九十百]+)、(.+)", re.MULTILINE)
+_L2_RE = re.compile(r"^（([一二三四五六七八九十百]+)）\s*(.+)", re.MULTILINE)
+_L3_RE = re.compile(r"^(\d+)[.、．]\s*(.+)", re.MULTILINE)
+
+
+def extract_outline(doc: Document) -> StructureOutline:
+    """Extract a multi-level heading outline from a Document."""
+    entries: list[OutlineEntry] = []
+    text = doc.raw_text
+
+    headings: list[tuple[int, str, int]] = []  # (level, heading, char_offset)
+    for m in _L1_RE.finditer(text):
+        headings.append((1, m.group(0).strip(), m.start()))
+    for m in _L2_RE.finditer(text):
+        headings.append((2, m.group(0).strip(), m.start()))
+    for m in _L3_RE.finditer(text):
+        full = m.group(0).strip()
+        # Skip very short matches (likely numbered lists in body text)
+        if len(full) > 4:
+            headings.append((3, full, m.start()))
+
+    headings.sort(key=lambda h: h[2])
+
+    for i, (level, heading, offset) in enumerate(headings):
+        next_offset = headings[i + 1][2] if i + 1 < len(headings) else len(text)
+        body_len = next_offset - offset
+        entries.append(OutlineEntry(
+            level=level, heading=heading, position=i, char_count=body_len,
+        ))
+
+    return StructureOutline(title=doc.title, year=doc.year, entries=entries)
+
+
+def _normalize_heading(h: str) -> str:
+    """Strip numbering prefix to get the topic core for matching."""
+    # Remove "一、" / "（一）" / "1." prefix
+    h = re.sub(r"^[一二三四五六七八九十百]+、\s*", "", h)
+    h = re.sub(r"^（[一二三四五六七八九十百]+）\s*", "", h)
+    h = re.sub(r"^\d+[.、．]\s*", "", h)
+    return h.strip()
+
+
+def compute_structure_diff(old_doc: Document, new_doc: Document) -> StructureDiff:
+    """Compare the structural outlines of two documents.
+
+    Detects: sections moved up/down (priority change), added/removed sections,
+    renamed sections (same position, different wording).
+    """
+    old_outline = extract_outline(old_doc)
+    new_outline = extract_outline(new_doc)
+
+    # Work with level-1 headings for the primary structure comparison
+    old_l1 = [(e.heading, e.position) for e in old_outline.entries if e.level == 1]
+    new_l1 = [(e.heading, e.position) for e in new_outline.entries if e.level == 1]
+
+    old_topics = {_normalize_heading(h): (h, pos) for h, pos in old_l1}
+    new_topics = {_normalize_heading(h): (h, pos) for h, pos in new_l1}
+
+    changes: list[StructureChange] = []
+
+    # Match by normalized heading
+    matched_old: set[str] = set()
+    matched_new: set[str] = set()
+
+    for topic in old_topics:
+        if topic in new_topics:
+            old_h, old_pos = old_topics[topic]
+            new_h, new_pos = new_topics[topic]
+            matched_old.add(topic)
+            matched_new.add(topic)
+
+            if old_h != new_h:
+                changes.append(StructureChange(
+                    heading_old=old_h, heading_new=new_h,
+                    change_type="renamed",
+                    old_position=old_pos, new_position=new_pos,
+                    note=f"措辞调整：{old_h} → {new_h}",
+                ))
+            elif old_pos != new_pos:
+                direction = "moved_up" if new_pos < old_pos else "moved_down"
+                delta = abs(new_pos - old_pos)
+                changes.append(StructureChange(
+                    heading_old=old_h, heading_new=new_h,
+                    change_type=direction,
+                    old_position=old_pos, new_position=new_pos,
+                    note=f"位置{'前移' if direction == 'moved_up' else '后移'} {delta} 位（优先级{'升' if direction == 'moved_up' else '降'}）",
+                ))
+            else:
+                changes.append(StructureChange(
+                    heading_old=old_h, heading_new=new_h,
+                    change_type="kept",
+                    old_position=old_pos, new_position=new_pos,
+                    note="位置不变",
+                ))
+
+    # Fuzzy match remaining by substring overlap for renamed sections
+    unmatched_old = {t: old_topics[t] for t in old_topics if t not in matched_old}
+    unmatched_new = {t: new_topics[t] for t in new_topics if t not in matched_new}
+
+    fuzzy_matched: set[str] = set()
+    for ot, (oh, opos) in unmatched_old.items():
+        best_score = 0
+        best_nt = None
+        for nt, (nh, npos) in unmatched_new.items():
+            if nt in fuzzy_matched:
+                continue
+            # Simple overlap: count shared characters
+            shared = sum(1 for c in ot if c in nt)
+            score = shared / max(len(ot), len(nt), 1)
+            if score > best_score and score > 0.4:
+                best_score = score
+                best_nt = nt
+        if best_nt:
+            nh, npos = unmatched_new[best_nt]
+            fuzzy_matched.add(best_nt)
+            matched_old.add(ot)
+            matched_new.add(best_nt)
+            changes.append(StructureChange(
+                heading_old=oh, heading_new=nh,
+                change_type="renamed",
+                old_position=opos, new_position=npos,
+                note=f"章节重组/更名：{oh} → {nh}",
+            ))
+
+    # Remaining unmatched = added/removed
+    for topic in old_topics:
+        if topic not in matched_old:
+            h, pos = old_topics[topic]
+            changes.append(StructureChange(
+                heading_old=h, heading_new="",
+                change_type="removed",
+                old_position=pos, new_position=None,
+                note=f"章节删除：{h}",
+            ))
+
+    for topic in new_topics:
+        if topic not in matched_new:
+            h, pos = new_topics[topic]
+            changes.append(StructureChange(
+                heading_old="", heading_new=h,
+                change_type="added",
+                old_position=None, new_position=pos,
+                note=f"新增章节：{h}",
+            ))
+
+    # Sort by new_position (or old_position for removed)
+    changes.sort(key=lambda c: c.new_position if c.new_position is not None else (c.old_position or 0))
+
+    # Build summary
+    moved = [c for c in changes if c.change_type in ("moved_up", "moved_down")]
+    added = [c for c in changes if c.change_type == "added"]
+    removed = [c for c in changes if c.change_type == "removed"]
+    renamed = [c for c in changes if c.change_type == "renamed"]
+    parts: list[str] = []
+    if added:
+        parts.append(f"新增 {len(added)} 个章节")
+    if removed:
+        parts.append(f"删除 {len(removed)} 个章节")
+    if moved:
+        up = [c for c in moved if c.change_type == "moved_up"]
+        down = [c for c in moved if c.change_type == "moved_down"]
+        if up:
+            parts.append(f"{len(up)} 个章节前移（优先级提升）")
+        if down:
+            parts.append(f"{len(down)} 个章节后移")
+    if renamed:
+        parts.append(f"{len(renamed)} 个章节更名/重组")
+    summary = "框架结构变动：" + "；".join(parts) if parts else "框架结构基本不变"
+
+    return StructureDiff(
+        old_outline=old_outline,
+        new_outline=new_outline,
+        changes=changes,
+        summary=summary,
     )
