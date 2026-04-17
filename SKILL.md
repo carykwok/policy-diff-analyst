@@ -81,14 +81,19 @@ Save to `/tmp/config.json`, then run:
 ```bash
 python -m scripts.run /tmp/config.json
 ```
-This produces `output/data.xlsx` and `output/charts/G1,G2,G4,G6 .png`.
+This produces `output/data.xlsx`, `output/charts/G1,G2,G6.png`, and **`output/analysis_brief.json`**.
 
-### Step 3 — Read the DiffReport JSON from run.py stdout + xlsx
-Open the diff report and understand:
+Alternatively, if installed via pip: `pda compare --config /tmp/config.json`
+
+### Step 3 — Read the analysis_brief.json
+Open `output/analysis_brief.json` — this is the structured, LLM-friendly summary containing:
 - `structure_diff`: L1/L2 framework changes (priority signal)
-- `diff_report`: keyword-level changes across all profile layers
-- `quantitative_comparison`: numerical indicator changes
+- `top_changes`: ranked keyword-level changes across all profile layers
+- `strength_scores`: per-dimension policy strength with delta
+- `quantitative_indicators`: numerical indicator changes
 - `new_term_candidates`: high-frequency terms not in profile (for Step 11)
+
+The full raw data is also available in `run_analysis()` return dict if needed.
 
 ### Step 4 — Write the article body (YOU, the LLM)
 
@@ -213,8 +218,27 @@ After completing the analysis article, perform a quality self-check:
 - Mode B max N = 5 versions.
 - Article body: strictly follow the selected style guide — do not mix styles.
 
+## Cross-platform usage
+
+The analysis engine is platform-agnostic. Three layers:
+
+| Layer | Content | Platform dependency |
+|-------|---------|-------------------|
+| **Engine** (Python CLI) | `scripts/` + `pda compare` CLI | None — any shell |
+| **Prompt template** | `prompts/analysis_prompt.md` | None — any LLM |
+| **Platform adapter** | `SKILL.md` / `adapters/codex/AGENTS.md` | Platform-specific |
+
+To use on a different AI platform:
+1. Install: `pip install -e .`
+2. Run: `pda compare --old old.txt --new new.txt --file-type govt_work_report`
+3. Feed `output/analysis_brief.json` + `prompts/analysis_prompt.md` to your LLM
+4. Pass the LLM output to `scripts/build_docx.build_report()` for Word generation
+
+See `adapters/codex/AGENTS.md` for Codex-specific instructions.
+
 ## Reference files
 
+- `prompts/analysis_prompt.md` — universal analysis instructions (platform-agnostic)
 - `references/profile_govt_work_report.md` — 政府工作报告 layer keyword map + scoring anchors
 - `references/profile_cewc.md` — 中央经济工作会议 profile
 - `references/profile_five_year_plan.md` — 五年规划纲要 profile
@@ -222,3 +246,4 @@ After completing the analysis article, perform a quality self-check:
 - `references/profile_monetary_policy_report.md` — 货币政策执行报告 profile
 - `references/source_whitelist.md` — human-readable domain whitelist
 - `assets/style_*.md` — style guides (loaded per-invocation)
+- `adapters/codex/AGENTS.md` — Codex platform adapter

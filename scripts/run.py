@@ -47,6 +47,81 @@ def _load_doc(spec: dict, cache_dir: Path, file_type: str) -> Document:
         return parse_docx(Path(spec["path"]), year=year, file_type=file_type)
     raise ValueError(f"unsupported mode: {mode}")
 
+def build_analysis_brief(result: dict, old: Document, new: Document, file_type: str) -> dict:
+    """Build an LLM-consumable analysis brief from raw run_analysis results.
+
+    This is the bridge between the deterministic Python engine and any LLM
+    (Claude, GPT-4, Gemini, open-source) that will write the analysis article.
+    """
+    diff = result["diff_report"]
+    struct = result["structure_diff"]
+
+    # Top changes: sort by significance (added/removed first, then modified by strength delta)
+    def _change_sort_key(item: dict) -> tuple:
+        ct = item["change_type"]
+        priority = {"added": 0, "removed": 1, "modified": 2, "kept": 3}
+        # For modified items, extract strength delta from note like "强度 3→5"
+        delta = 0
+        if "→" in item.get("note", ""):
+            import re
+            m = re.search(r"(\d+)→(\d+)", item["note"])
+            if m:
+                delta = abs(int(m.group(2)) - int(m.group(1)))
+        return (priority.get(ct, 3), -delta)
+
+    active_items = [i for i in diff["items"] if i["change_type"] != "kept"]
+    active_items.sort(key=_change_sort_key)
+    top_changes = active_items[:15]
+
+    # Strength scores with delta
+    strength_summary = []
+    for s in diff["strength"]:
+        delta = round(s["new"] - s["old"], 2)
+        strength_summary.append({
+            "dimension": s["dimension"],
+            "old_score": round(s["old"], 2),
+            "new_score": round(s["new"], 2),
+            "delta": delta,
+            "direction": "↑" if delta > 0 else ("↓" if delta < 0 else "→"),
+        })
+
+    # Structure diff — flatten to readable format
+    struct_changes = []
+    for c in struct["changes"]:
+        if c["change_type"] == "kept":
+            continue
+        struct_changes.append({
+            "heading_old": c["heading_old"],
+            "heading_new": c["heading_new"],
+            "change_type": c["change_type"],
+            "note": c["note"],
+        })
+
+    return {
+        "metadata": {
+            "old_title": diff["old_doc_title"],
+            "new_title": diff["new_doc_title"],
+            "old_year": old.year,
+            "new_year": new.year,
+            "file_type": file_type,
+            "generated_at": __import__("datetime").datetime.now().isoformat(),
+        },
+        "structure_diff": {
+            "summary": struct["summary"],
+            "changes": struct_changes,
+        },
+        "top_changes": top_changes,
+        "strength_scores": strength_summary,
+        "quantitative_indicators": result["quantitative_comparison"],
+        "new_term_candidates": result["new_term_candidates"][:10],
+        "usage_instructions": (
+            "Feed this JSON together with prompts/analysis_prompt.md to any LLM. "
+            "The LLM reads the prompt template, consumes this data, and produces "
+            "a structured analysis article. See README.md for details."
+        ),
+    }
+
+
 def run_analysis(config: dict) -> dict:
     out_dir = Path(config["output_dir"])
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -102,7 +177,7 @@ def run_analysis(config: dict) -> dict:
     # Discover new terms not in current profile
     new_term_candidates = discover_new_terms(old.raw_text, new.raw_text, profile)
 
-    return {
+    result = {
         "diff_report": asdict(report),
         "structure_diff": asdict(structure_diff),
         "quantitative_comparison": quantitative_comparison,
@@ -111,6 +186,14 @@ def run_analysis(config: dict) -> dict:
         "output_dir": str(out_dir),
         "charts_dir": str(charts_dir),
     }
+
+    # Write analysis_brief.json — a structured, LLM-friendly summary
+    # that any AI platform can consume without parsing raw dataclasses.
+    brief = build_analysis_brief(result, old, new, file_type)
+    brief_path = out_dir / "analysis_brief.json"
+    brief_path.write_text(json.dumps(brief, ensure_ascii=False, indent=2), encoding="utf-8")
+
+    return result
 
 def main(argv: list[str]) -> int:
     if len(argv) != 1:

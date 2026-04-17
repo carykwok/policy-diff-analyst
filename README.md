@@ -1,107 +1,152 @@
-# policy-diff-analyst
+# Policy Diff Analyst
 
-Claude Code / Codex skill for comparative analysis of Chinese policy documents.
+## 三月五号下午两点半，你的手机同时震了三下。
 
-Automatically extracts document structure, compares keyword usage, scores policy intensity shifts, and tracks multi-year trends. Produces a Word analysis article + Excel data table + PNG charts.
+老板的微信："报告出来了，和去年比有什么变化？五点前给我一页纸。"
 
-## Supported document types
+基金经理的邮件："今年消费和去年提法不一样，帮我拉一下措辞变化，看看是加码还是转向。"
 
-| file_type | Document | Profile |
-|---|---|---|
-| `govt_work_report` | 政府工作报告 | 7 layers, 62 keywords |
-| `cewc` | 中央经济工作会议 | 7 layers, 91 keywords |
-| `five_year_plan` | 五年规划纲要 | 8 layers, 105 keywords |
-| `third_plenum` | 三中全会决定 | 7 layers, 84 keywords |
-| `monetary_policy_report` | 货币政策执行报告 | 6 layers, 106 keywords |
+客户群里已经有人在问："货币政策从'稳健'变成'适度宽松'，这是什么信号？要不要调仓？"
 
-## Features
+你打开两份文件。去年的 17,000 字，今年的 18,000 字。逐字看？一下午不够。等券商研报？最快也要明天早上。
 
-- **Structure outline diff** — extract multi-level headings (一、/（一）/1.) and compare section ordering between versions
-- **MECE keyword diff** — profile-driven keyword detection across policy layers (A1-A8)
-- **Strength scoring** — 0-5 scale intensity assessment with modifier detection (大力/坚决/积极/稳妥…)
-- **Temporal tracking** — N-year keyword trajectory classification (sustained / emerging / revived / fading / dropped)
-- **Annotated docx** — red-highlighted new document with inline change annotations
-- **Excel data table** — 4-sheet workbook (indicators / term frequency / strength scores / diff list)
-- **6 chart types** — G1 word frequency bar, G2 strength radar, G3 config matrix, G4 indicator timeline, G5 sector sunburst, G6 wording flow sankey
+**你把两份文件丢进了这个工具。**
 
-## Install for Claude Code
+**30 秒后，你的桌面上多了这些东西：**
 
+一篇写好的深度解读文章，Word 格式，可以直接发给老板。一份标注版原文，改了哪句话红色高亮标得清清楚楚。一套图表，雷达图、桑基图、行业配置矩阵，截图就能贴 PPT。一份 Excel 数据表，指标对比、词频统计、强度打分，四个 Sheet 全部拉好。
+
+五点前？你三点就发出去了。
+
+---
+
+## 这个工具能做什么
+
+### 一、读得比你快，看得比你细
+
+你读报告是从头到尾顺着读。它不是。
+
+它先看**骨架**——今年的章节结构和去年一样吗？"消费"从第三章提到了第一章？这比任何一句措辞变化都重要，因为这意味着整个政策优先级翻了个个儿。
+
+然后它拿着 **448 个关键词**逐句扫。不是 Ctrl+F 那种简单搜索——它按"宏观定调、政策工具、产业地图、风险监管、民生分配、区域对外"六个层面分门别类地扫。哪个层面在加码、哪个在收力，扫完就知道。
+
+最后它给每个关键词**打强度分**。"大力推进"和"稳妥推进"，文字只差两个字，但政策信号天差地别。它用 0-5 分把这种差别量化出来。
+
+> 举个真实例子：2025 年报告里，"货币政策"前面的修饰词从"稳健"变成了"适度宽松"。这是 14 年来首次改口。引擎自动捕捉到这个变化，标注强度从 2 分跳到 4 分，并归入"A2 政策工具"层。
+
+### 二、不只告诉你"变了什么"，还告诉你"所以呢"
+
+市面上的文本对比工具到"变了什么"就停了。这个不一样。
+
+它背后跑的是一套 **12 章分析方法论**——从中金、兴证、国君这些头部券商的宏观策略框架里提炼出来的。每一个差异点，它都走一遍完整的推理链：
+
+**是什么** → 措辞具体怎么变的
+**为什么** → 背后的经济背景和政策意图是什么
+**所以呢** → 对哪些行业有影响、该怎么应对
+
+赤字率从 3% 提到 4%，它不只是告诉你"涨了一个点"——它会分析这背后是财政扩张信号，对应基建、环保、新能源板块可能受益，同时提示你国债供给压力可能压制债市。
+
+### 三、同一份数据，三种说法
+
+写给机构客户的，和发朋友圈的，能一样吗？
+
+| 风格 | 什么感觉 | 给谁看 |
+|------|---------|--------|
+| **投研派** | 像中金首席写的晨报，严谨、有数据、有置信度 | 基金经理、分析师、机构客户 |
+| **媒体派** | 像《财经》杂志的封面报道，有故事线、有节奏感 | 财经记者、政策研究者、领导汇报 |
+| **大白话** | 说人话，不掉书袋，"这事跟你的钱有什么关系" | 散户、非金融背景的老板、朋友圈传播 |
+
+选一个风格，出来就是一篇完整的文章，不用你再改。
+
+### 四、出图，能直接贴 PPT 的那种
+
+每次分析自动生成一组可视化，不用你再开 Excel 画图：
+
+<table>
+<tr>
+<td align="center"><img src="docs/examples/G1_wordfreq.png" width="380"/><br/><b>词频对比</b><br/>"新质生产力"今年提了 8 次，去年 3 次——加码了</td>
+<td align="center"><img src="docs/examples/G2_radar.png" width="380"/><br/><b>政策力度雷达</b><br/>六个维度谁在膨胀、谁在收缩，一张图说清</td>
+</tr>
+<tr>
+<td align="center"><img src="docs/examples/G3_matrix.png" width="380"/><br/><b>行业配置建议</b><br/>超配什么、低配什么，连置信度都标了</td>
+<td align="center"><img src="docs/examples/G6_sankey.png" width="380"/><br/><b>措辞流向</b><br/>哪些词新冒出来、哪些悄悄消失、哪些换了说法</td>
+</tr>
+</table>
+
+### 五、什么格式都吃，甚至什么都不用给
+
+手上有 Word？丢进来。有 PDF？丢进来。只有一个网页链接？也行，自动抓。
+
+甚至——你什么都不用准备，跟它说一句**"对比最新两版政府工作报告"**，它自己去政府官网找、自己抓、自己比。
+
+### 六、不只是政府工作报告
+
+五类中国最核心的政策文档，全覆盖：
+
+- **政府工作报告** — 每年 3 月，年度经济政策总纲
+- **中央经济工作会议** — 每年 12 月，来年方向风向标
+- **五年规划纲要** — 每 5 年，中期战略赛道全景图
+- **三中全会决定** — 改革路线图，制度级变化
+- **货币政策执行报告** — 每季度，央行的心思全在字里行间
+
+每类文档都有**专门调教的关键词库**（合计 448 个），不是通用 NLP 硬套的。
+
+### 七、词库会自己长
+
+政策语言每年都在变。"新质生产力"在 2024 年之前是不存在的。
+
+每次分析完，引擎会自动发现报告里反复出现、但不在现有词库里的新词，提示你："要不要把这个词加进去？"
+
+下一次分析，词库就更完整了。
+
+---
+
+## 它是怎么做到的
+
+> 这部分写给想了解原理的人。不感兴趣可以跳过，不影响使用。
+
+引擎分三层，彼此独立：
+
+**第一层：纯 Python 分析引擎**（零 AI 依赖）
+解析文档 → 提取结构 → 关键词扫描 → 强度评分 → 量化指标抽取 → 生成 Excel + 图表 + 标注版原文。这层完全确定性计算，跑在你本地，不调任何 API。
+
+**第二层：通用分析 Prompt**
+一份 markdown 文件（`prompts/analysis_prompt.md`），定义了 9 大分析维度和输出格式。任何大语言模型都能读懂——Claude、GPT-4、Gemini、开源模型，都行。
+
+**第三层：平台适配**
+给 Claude Code 写了一份 `SKILL.md`，给 Codex 写了一份 `AGENTS.md`。换平台？写一份薄薄的适配文件就行，引擎和 Prompt 完全复用。
+
+| 平台 | 怎么接 |
+|------|--------|
+| Claude Code | 装了就能用，说句话自动触发 |
+| Codex CLI | 读 `adapters/codex/AGENTS.md` |
+| 其他 AI 平台 | 跑 `pda compare` + 喂 prompt 给你的 LLM |
+| 不用 AI | `pda compare` 命令行直接跑，拿数据自己分析 |
+
+---
+
+## 三分钟上手
+
+**Claude Code 用户**（最省事）：
 ```bash
-# Clone into your personal skills directory
 git clone https://github.com/carykwok/policy-diff-analyst.git ~/.claude/skills/policy-diff-analyst
-
-# Install Python dependencies
-cd ~/.claude/skills/policy-diff-analyst
-pip install -e ".[dev]"
+cd ~/.claude/skills/policy-diff-analyst && pip install -e .
 ```
+装完对 Claude 说一句话就行，比如："用大白话帮我对比 2024 和 2025 年政府工作报告。"
 
-Claude Code auto-detects the skill immediately — no restart needed.
-
-**Alternative: project-level install** (only available in one project):
+**命令行用户**：
 ```bash
-git clone https://github.com/carykwok/policy-diff-analyst.git .claude/skills/policy-diff-analyst
+pip install -e .
+pda compare --old 旧版.txt --new 新版.txt --file-type govt_work_report
 ```
 
-## Install for Codex CLI
-
-```bash
-# Clone into your Codex skills directory
-git clone https://github.com/carykwok/policy-diff-analyst.git ~/.codex/skills/policy-diff-analyst
-
-# Install Python dependencies
-cd ~/.codex/skills/policy-diff-analyst
-pip install -e ".[dev]"
-```
-
-Restart Codex CLI after installation. The skill appears in `/skills` list.
-
-## Usage
-
-The skill triggers automatically when you ask Claude / Codex to compare policy documents:
-
-```
-对比 2023 和 2024 年政府工作报告
-```
-```
-分析近三年中央经济工作会议的政策变化趋势
-```
-```
-Compare these two monetary policy reports [attach files]
-```
-
-### Modes
-
-- **Mode A** (explicit inputs): supply URLs, PDF/docx paths, or paste text directly
-- **Mode B** (intent-driven): describe what you want (e.g. "最新两版政府工作报告"), skill auto-fetches from whitelisted government sources
-
-### Output
-
-```
-output/
-├── report.docx              # Analysis article (research / media / retail style)
-├── annotated_new.docx       # Red-highlighted new document with structure diff
-├── data.xlsx                # 4-sheet data workbook
-└── charts/
-    ├── G1_词频对比.png
-    ├── G2_政策强度雷达.png
-    └── G6_措辞流向.png
-```
-
-### CLI (standalone)
-
-```bash
-python -m scripts.run config.json
-```
-
-See `SKILL.md` for the full workflow protocol.
-
-## Development
-
+**开发者**：
 ```bash
 pip install -e ".[dev]"
-pytest                          # 57 tests
-pytest tests/test_smoke.py -v   # end-to-end smoke test
+pytest    # 71 tests
 ```
+
+---
 
 ## License
 
