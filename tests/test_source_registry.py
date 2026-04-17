@@ -1,5 +1,5 @@
 import pytest
-from scripts.source_registry import get_sources, ALLOWED_DOMAINS, is_allowed
+from scripts.source_registry import get_sources, ALLOWED_DOMAINS, SUPPORTED_FILE_TYPES, is_allowed
 
 def test_govt_work_report_sources_returned_for_year():
     sources = get_sources("govt_work_report", 2024)
@@ -16,6 +16,23 @@ def test_unsupported_file_type_raises():
 def test_allowed_domains_are_authoritative_only():
     for dom in ALLOWED_DOMAINS:
         assert dom.endswith(".gov.cn") or dom.endswith(".cn") or dom.endswith(".com.cn")
+
+@pytest.mark.parametrize("file_type", ["cewc", "five_year_plan", "third_plenum"])
+def test_new_file_types_return_whitelisted_sources(file_type):
+    sources = get_sources(file_type, 2024)
+    assert len(sources) >= 1
+    assert all(s["domain"] in ALLOWED_DOMAINS for s in sources)
+
+def test_monetary_policy_report_sources_with_quarter():
+    sources = get_sources("monetary_policy_report", 2024, quarter=1)
+    assert len(sources) >= 1
+    assert all(s["domain"] in ALLOWED_DOMAINS for s in sources)
+    assert any("Q1" in s["url"] for s in sources)
+
+def test_supported_file_types_tuple():
+    assert len(SUPPORTED_FILE_TYPES) == 5
+    assert "govt_work_report" in SUPPORTED_FILE_TYPES
+    assert "cewc" in SUPPORTED_FILE_TYPES
 
 def test_is_allowed_rejects_spoofed_and_non_https_urls():
     # Exact-host whitelisted

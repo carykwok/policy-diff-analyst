@@ -1,24 +1,28 @@
+from __future__ import annotations
 from pathlib import Path
+from typing import TYPE_CHECKING
 from openpyxl import Workbook
 from scripts.models import DiffReport
 from scripts.score_model import top_n_term_freq, strength_to_dataframe
 
-A1_QUANTITATIVE_KEYS = ("GDP", "国内生产总值", "赤字率", "CPI", "居民消费价格", "城镇新增就业")
+if TYPE_CHECKING:
+    from scripts.diff_engine import Profile
 
 def _write_df(ws, df) -> None:
     ws.append(list(df.columns))
     for _, row in df.iterrows():
         ws.append(list(row))
 
-def build_xlsx(report: DiffReport, out: Path) -> None:
+def build_xlsx(report: DiffReport, out: Path, profile: "Profile | None" = None) -> None:
     wb = Workbook()
 
     # Sheet 1: 指标对比 — rows from term_freq whose term is a quantitative key
+    quant_keys = profile.quantitative_keys if profile and profile.quantitative_keys else []
     ws1 = wb.active
     ws1.title = "指标对比"
     ws1.append(["指标", f"旧版({report.old_doc_title})", f"新版({report.new_doc_title})", "差值"])
     for term, freq in report.term_freq.items():
-        if any(k in term for k in A1_QUANTITATIVE_KEYS):
+        if any(k in term for k in quant_keys):
             ws1.append([term, freq["old"], freq["new"], freq["new"] - freq["old"]])
 
     # Sheet 2: 词频统计 — top-50

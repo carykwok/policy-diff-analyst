@@ -1,5 +1,15 @@
 # Profile: 政府工作报告 (govt_work_report)
 
+## Layer set
+
+- A1 宏观定调
+- A2 政策工具
+- A3 产业地图
+- A4 风险监管
+- A5 民生分配
+- A6 区域对外
+- A7 结构增量
+
 ## Layer keyword maps (A1–A7)
 
 ### A1 宏观定调
@@ -28,6 +38,14 @@
 
 ### A7 结构增量
 横切层，由 diff 引擎基于 A1-A6 的 added/removed/intensity_shift 自动聚合。
+
+## Quantitative keys
+
+量化指标（Sheet 1「指标对比」用）：
+- GDP、国内生产总值
+- 赤字率
+- CPI、居民消费价格
+- 城镇新增就业
 
 ## Strength scoring anchors (0–5 scale)
 

@@ -29,18 +29,18 @@ from scripts.build_charts import (
     build_g6_flow_sankey,
 )
 
-def _load_doc(spec: dict, cache_dir: Path) -> Document:
+def _load_doc(spec: dict, cache_dir: Path, file_type: str) -> Document:
     mode = spec["mode"]
     year = spec["year"]
     if mode == "text":
-        return parse_text(spec["content"], year=year)
+        return parse_text(spec["content"], year=year, file_type=file_type)
     if mode == "url":
         text = fetch(spec["url"], cache_dir=cache_dir)
-        return parse_text(text, year=year, source_url=spec["url"])
+        return parse_text(text, year=year, file_type=file_type, source_url=spec["url"])
     if mode == "pdf":
-        return parse_pdf(Path(spec["path"]), year=year)
+        return parse_pdf(Path(spec["path"]), year=year, file_type=file_type)
     if mode == "docx":
-        return parse_docx(Path(spec["path"]), year=year)
+        return parse_docx(Path(spec["path"]), year=year, file_type=file_type)
     raise ValueError(f"unsupported mode: {mode}")
 
 def run_analysis(config: dict) -> dict:
@@ -50,12 +50,13 @@ def run_analysis(config: dict) -> dict:
     charts_dir.mkdir(exist_ok=True)
     cache_dir = Path(config.get("cache_dir", "cache"))
 
-    old = _load_doc(config["old"], cache_dir)
-    new = _load_doc(config["new"], cache_dir)
+    file_type = config.get("file_type", "govt_work_report")
+    old = _load_doc(config["old"], cache_dir, file_type)
+    new = _load_doc(config["new"], cache_dir, file_type)
     profile = load_profile(config["profile_path"])
     report = compute_diff(old, new, profile)
 
-    build_xlsx(report, out_dir / "data.xlsx")
+    build_xlsx(report, out_dir / "data.xlsx", profile=profile)
     build_g1_wordfreq_bar(report, charts_dir / "G1_词频对比.png")
     build_g2_strength_radar(report, charts_dir / "G2_政策强度雷达.png")
 

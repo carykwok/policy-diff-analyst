@@ -5,34 +5,44 @@ from scripts.models import Document, DiffItem, DiffReport, StrengthScore
 
 @dataclass
 class Profile:
+    layer_ids: list[str]                         # ["A1", "A2", ...] — from profile md
+    layer_names: dict[str, str]                  # {"A1": "宏观定调", ...}
     keywords_by_layer: dict[str, list[str]]      # "A1" -> [kw, ...]
     strength_scale: dict[str, int]               # "大力" -> 4
+    quantitative_keys: list[str]                 # ["GDP", "赤字率", ...]
 
-_LAYER_SECTION_RE = re.compile(r"^### (A[1-7])\s+(.+)$", re.MULTILINE)
+_LAYER_SET_RE = re.compile(r"^- (A\d+)\s+(.+)$", re.MULTILINE)
+_LAYER_SECTION_RE = re.compile(r"^### (A\d+)\s+(.+)$", re.MULTILINE)
 _BULLET_KW_RE = re.compile(r"[：:]\s*(.+)$")
 _SCALE_ROW_RE = re.compile(r"^\|\s*(.+?)\s*\|\s*(\d+)\s*\|")
 
-_LAYER_NAMES = {
-    "A1": "定调",
-    "A2": "工具",
-    "A3": "产业",
-    "A4": "风险",
-    "A5": "民生",
-    "A6": "区域对外",
-}
-
 def load_profile(path: str | Path) -> Profile:
     text = Path(path).read_text(encoding="utf-8")
+
+    # Parse ## Layer set
+    layer_ids: list[str] = []
+    layer_names: dict[str, str] = {}
+    layer_set_start = text.find("## Layer set")
+    if layer_set_start != -1:
+        next_h2 = text.find("\n## ", layer_set_start + 1)
+        layer_set_chunk = text[layer_set_start: next_h2 if next_h2 != -1 else len(text)]
+        for m in _LAYER_SET_RE.finditer(layer_set_chunk):
+            layer_ids.append(m.group(1))
+            layer_names[m.group(1)] = m.group(2).strip()
+
+    # Parse ### layer keyword sections
     keywords: dict[str, list[str]] = {}
     for m in _LAYER_SECTION_RE.finditer(text):
         layer = m.group(1)
         end = text.find("### ", m.end())
-        chunk = text[m.end(): end if end != -1 else len(text)]
+        next_h2 = text.find("\n## ", m.end())
+        boundaries = [b for b in [end, next_h2] if b != -1]
+        stop = min(boundaries) if boundaries else len(text)
+        chunk = text[m.end(): stop]
         found: list[str] = []
         for line in chunk.splitlines():
             stripped = line.strip()
             if stripped.startswith("-"):
-                # Strip leading "- " and an optional "label：" prefix before splitting.
                 body = stripped.lstrip("-").strip()
                 tail = _BULLET_KW_RE.search(body)
                 kw_str = tail.group(1) if tail else body
@@ -41,6 +51,29 @@ def load_profile(path: str | Path) -> Profile:
                     if kw:
                         found.append(kw)
         keywords[layer] = found
+
+    # Fallback: if no ## Layer set, infer from keyword sections
+    if not layer_ids:
+        layer_ids = sorted(keywords.keys())
+        for lid in layer_ids:
+            layer_names[lid] = lid
+
+    # Parse ## Quantitative keys
+    quantitative_keys: list[str] = []
+    qk_start = text.find("## Quantitative keys")
+    if qk_start != -1:
+        next_h2 = text.find("\n## ", qk_start + 1)
+        qk_chunk = text[qk_start: next_h2 if next_h2 != -1 else len(text)]
+        for line in qk_chunk.splitlines():
+            stripped = line.strip()
+            if stripped.startswith("-"):
+                body = stripped.lstrip("-").strip()
+                for kw in re.split(r"[、，,/]", body):
+                    kw = kw.strip()
+                    if kw:
+                        quantitative_keys.append(kw)
+
+    # Parse strength scale table
     scale: dict[str, int] = {}
     for line in text.splitlines():
         m = _SCALE_ROW_RE.match(line)
@@ -49,7 +82,14 @@ def load_profile(path: str | Path) -> Profile:
                 word = word.strip()
                 if word and not word.startswith("(") and not word.startswith("（"):
                     scale[word] = int(m.group(2))
-    return Profile(keywords_by_layer=keywords, strength_scale=scale)
+
+    return Profile(
+        layer_ids=layer_ids,
+        layer_names=layer_names,
+        keywords_by_layer=keywords,
+        strength_scale=scale,
+        quantitative_keys=quantitative_keys,
+    )
 
 def _hits(text: str, keywords: list[str]) -> list[str]:
     return [kw for kw in keywords if kw in text]
@@ -70,7 +110,18 @@ def compute_diff(old: Document, new: Document, profile: Profile) -> DiffReport:
     items: list[DiffItem] = []
     old_text, new_text = old.raw_text, new.raw_text
 
-    for layer in ("A1", "A2", "A3", "A4", "A5", "A6"):
+    # Determine which layer is the aggregation layer (conventionally the last one
+    # whose keyword map section says "横切层" or has no keywords — or simply the
+    # last layer_id if its keywords are empty).
+    agg_layer = None
+    for lid in reversed(profile.layer_ids):
+        if not profile.keywords_by_layer.get(lid):
+            agg_layer = lid
+            break
+
+    for layer in profile.layer_ids:
+        if layer == agg_layer:
+            continue
         kws = profile.keywords_by_layer.get(layer, [])
         old_hits, new_hits = set(_hits(old_text, kws)), set(_hits(new_text, kws))
         for kw in new_hits - old_hits:
@@ -89,22 +140,22 @@ def compute_diff(old: Document, new: Document, profile: Profile) -> DiffReport:
                     note=f"强度 {old_score}→{new_score}",
                 ))
 
-    # A7 aggregation — modified items are only emitted when scores differ (see above),
-    # so counting them directly gives the intensity-shift total without a redundant filter.
-    added_terms = [i.new for i in items if i.change_type == "added"]
-    removed_terms = [i.old for i in items if i.change_type == "removed"]
-    intensified = [i for i in items if i.change_type == "modified"]
-    a7_note = f"新增 {len(added_terms)} 项；消失 {len(removed_terms)} 项；强度变化 {len(intensified)} 项"
-    items.append(DiffItem(layer="A7", change_type="modified", old="", new="", note=a7_note))
+    if agg_layer:
+        added_terms = [i.new for i in items if i.change_type == "added"]
+        removed_terms = [i.old for i in items if i.change_type == "removed"]
+        intensified = [i for i in items if i.change_type == "modified"]
+        agg_note = f"新增 {len(added_terms)} 项；消失 {len(removed_terms)} 项；强度变化 {len(intensified)} 项"
+        items.append(DiffItem(layer=agg_layer, change_type="modified", old="", new="", note=agg_note))
 
-    # Strength scores per layer (mean of all keyword nearby scores)
     strength: list[StrengthScore] = []
-    for layer in ("A1", "A2", "A3", "A4", "A5", "A6"):
+    for layer in profile.layer_ids:
+        if layer == agg_layer:
+            continue
         kws = profile.keywords_by_layer.get(layer, [])
         old_scores = [_nearby_strength(old_text, k, profile.strength_scale)[1] for k in kws if k in old_text]
         new_scores = [_nearby_strength(new_text, k, profile.strength_scale)[1] for k in kws if k in new_text]
         strength.append(StrengthScore(
-            dimension=f"{layer}_{_LAYER_NAMES[layer]}",
+            dimension=f"{layer}_{profile.layer_names.get(layer, layer)}",
             old=sum(old_scores)/len(old_scores) if old_scores else 0.0,
             new=sum(new_scores)/len(new_scores) if new_scores else 0.0,
         ))

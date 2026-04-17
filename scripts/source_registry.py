@@ -9,20 +9,43 @@ ALLOWED_DOMAINS = (
     "www.pbc.gov.cn",     # 中国人民银行
 )
 
-# (file_type, year) -> list of source dicts with tier + URL template
-_GOVT_WORK_REPORT_URLS = {
-    # Users should verify these template URLs against gov.cn's actual publication pages
-    # at runtime. The registry's job is to scope which domains we may access.
-    "tier1_template": "https://www.gov.cn/premier/{year}-03/05/content_government_work_report.htm",
-    "tier2_template": "https://www.news.cn/politics/{year}lh/govt_report.htm",
+SUPPORTED_FILE_TYPES = (
+    "govt_work_report",
+    "cewc",
+    "five_year_plan",
+    "third_plenum",
+    "monetary_policy_report",
+)
+
+_URL_TEMPLATES: dict[str, list[dict]] = {
+    "govt_work_report": [
+        {"tier": 1, "template": "https://www.gov.cn/premier/{year}-03/05/content_government_work_report.htm", "domain": "www.gov.cn"},
+        {"tier": 2, "template": "https://www.news.cn/politics/{year}lh/govt_report.htm", "domain": "www.news.cn"},
+    ],
+    "cewc": [
+        {"tier": 1, "template": "https://www.gov.cn/yaowen/liebiao/{year}12/cewc.htm", "domain": "www.gov.cn"},
+        {"tier": 2, "template": "https://www.news.cn/politics/{year}-12/cewc.htm", "domain": "www.news.cn"},
+    ],
+    "five_year_plan": [
+        {"tier": 1, "template": "https://www.gov.cn/xinwen/{year}-03/five_year_plan.htm", "domain": "www.gov.cn"},
+        {"tier": 2, "template": "https://www.news.cn/politics/{year}lh/five_year_plan.htm", "domain": "www.news.cn"},
+    ],
+    "third_plenum": [
+        {"tier": 1, "template": "https://www.gov.cn/zhengce/{year}/third_plenum_decision.htm", "domain": "www.gov.cn"},
+        {"tier": 2, "template": "https://www.news.cn/politics/{year}/third_plenum.htm", "domain": "www.news.cn"},
+    ],
+    "monetary_policy_report": [
+        {"tier": 1, "template": "https://www.pbc.gov.cn/zhengcehuobisi/{year}Q{quarter}/mpr.htm", "domain": "www.pbc.gov.cn"},
+        {"tier": 2, "template": "https://www.gov.cn/xinwen/{year}/mpr_Q{quarter}.htm", "domain": "www.gov.cn"},
+    ],
 }
 
-def get_sources(file_type: str, year: int) -> list[dict]:
-    if file_type != "govt_work_report":
+def get_sources(file_type: str, year: int, **kwargs) -> list[dict]:
+    if file_type not in _URL_TEMPLATES:
         raise ValueError(f"unsupported file_type: {file_type}")
     return [
-        {"tier": 1, "url": _GOVT_WORK_REPORT_URLS["tier1_template"].format(year=year), "domain": "www.gov.cn"},
-        {"tier": 2, "url": _GOVT_WORK_REPORT_URLS["tier2_template"].format(year=year), "domain": "www.news.cn"},
+        {"tier": t["tier"], "url": t["template"].format(year=year, **kwargs), "domain": t["domain"]}
+        for t in _URL_TEMPLATES[file_type]
     ]
 
 def is_allowed(url: str) -> bool:

@@ -1,6 +1,6 @@
 ---
 name: policy-diff-analyst
-description: Comparative analysis of Chinese policy documents (政府工作报告 first; CEWC / 五年规划 / 三中全会 / 货政报告 later). Use whenever the user asks to compare two versions of a Chinese policy document, analyze policy shifts year-over-year, extract changes in wording/tone/priorities between 政府工作报告 versions, or auto-fetch + compare recent policy papers by intent (e.g. "对比最新两版政府工作报告", "近三年政策趋势"). Produces a Word analysis article + Excel data table + PNG chart folder.
+description: Comparative analysis of Chinese policy documents (政府工作报告 / 中央经济工作会议 / 五年规划纲要 / 三中全会决定 / 货币政策执行报告). Use whenever the user asks to compare two versions of a Chinese policy document, analyze policy shifts year-over-year, extract changes in wording/tone/priorities, or auto-fetch + compare recent policy papers by intent (e.g. "对比最新两版政府工作报告", "近三年经济工作会议趋势", "十四五 vs 十三五"). Produces a Word analysis article + Excel data table + PNG chart folder.
 ---
 
 # Policy Diff Analyst
@@ -18,9 +18,15 @@ Trigger on any of:
 - User mentions 政府工作报告 / 中央经济工作会议 / 五年规划 / 三中全会决定 / 货币政策执行报告 comparison
 - User wants policy-driven investment analysis (风格判断 / 行业配置 / 交易节奏)
 
-## v1 scope
+## Supported file_types
 
-Only `file_type=govt_work_report` is supported in v1. For other document types, tell the user they will be supported in later versions.
+| file_type | 文档类型 | profile 文件 |
+|---|---|---|
+| `govt_work_report` | 政府工作报告 | `references/profile_govt_work_report.md` |
+| `cewc` | 中央经济工作会议 | `references/profile_cewc.md` |
+| `five_year_plan` | 五年规划纲要 | `references/profile_five_year_plan.md` |
+| `third_plenum` | 三中全会决定 | `references/profile_third_plenum.md` |
+| `monetary_policy_report` | 货币政策执行报告 | `references/profile_monetary_policy_report.md` |
 
 ## Required inputs (identify from the user's prompt; ask if missing)
 
@@ -29,7 +35,7 @@ Only `file_type=govt_work_report` is supported in v1. For other document types, 
 | new version | ✅ | — | — |
 | old version | ✅ | — | — |
 | intent description | — | ✅ | — |
-| file_type | ✅ | ✅ | govt_work_report |
+| file_type | ✅ | ✅ | 必须指定 |
 | N versions (Mode B only) | — | 2 | 2 |
 | article_style | ✅ | ✅ | ask user; options: research / media / retail |
 | output_dir | ❌ | ❌ | `./output` |
@@ -118,6 +124,10 @@ Tell the user:
 
 ## Reference files
 
-- `references/profile_govt_work_report.md` — layer keyword map + scoring anchors
+- `references/profile_govt_work_report.md` — 政府工作报告 layer keyword map + scoring anchors
+- `references/profile_cewc.md` — 中央经济工作会议 profile
+- `references/profile_five_year_plan.md` — 五年规划纲要 profile
+- `references/profile_third_plenum.md` — 三中全会决定 profile
+- `references/profile_monetary_policy_report.md` — 货币政策执行报告 profile
 - `references/source_whitelist.md` — human-readable domain whitelist
 - `assets/style_*.md` — style guides (loaded per-invocation)

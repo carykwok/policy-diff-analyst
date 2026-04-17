@@ -20,7 +20,7 @@ def detect_sections(body: str) -> list[Section]:
         sections.append(Section(heading=heading_line, body=content))
     return sections
 
-def parse_text(raw: str, *, year: int, title: str | None = None, source_url: str | None = None) -> Document:
+def parse_text(raw: str, *, year: int, file_type: str, title: str | None = None, source_url: str | None = None) -> Document:
     lines = raw.strip().splitlines()
     inferred_title = title or (lines[0].strip() if lines else "")
     body = "\n".join(lines[1:]) if title is None and lines else raw
@@ -28,20 +28,20 @@ def parse_text(raw: str, *, year: int, title: str | None = None, source_url: str
     return Document(
         title=inferred_title,
         year=year,
-        file_type="govt_work_report",
+        file_type=file_type,
         source_url=source_url,
         sections=sections,
         raw_text=raw,
     )
 
-def parse_docx(path: Path, *, year: int, source_url: str | None = None) -> Document:
+def parse_docx(path: Path, *, year: int, file_type: str, source_url: str | None = None) -> Document:
     d = DocxDocument(str(path))
     paras = [p.text for p in d.paragraphs if p.text.strip()]
     raw = "\n".join(paras)
-    return parse_text(raw, year=year, title=paras[0] if paras else "", source_url=source_url)
+    return parse_text(raw, year=year, file_type=file_type, title=paras[0] if paras else "", source_url=source_url)
 
-def parse_pdf(path: Path, *, year: int, source_url: str | None = None) -> Document:
+def parse_pdf(path: Path, *, year: int, file_type: str, source_url: str | None = None) -> Document:
     reader = PdfReader(str(path))
     pages = [page.extract_text() or "" for page in reader.pages]
     raw = "\n".join(pages)
-    return parse_text(raw, year=year, source_url=source_url)
+    return parse_text(raw, year=year, file_type=file_type, source_url=source_url)
